@@ -62,6 +62,12 @@ html {
   }
 }
 
+/* Any `display` declaration outranks the UA stylesheet's `[hidden] {display:none}`,
+   which silently un-hides elements we toggle from JS. Restore the invariant. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
