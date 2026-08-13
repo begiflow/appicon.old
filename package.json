@@ -1,0 +1,29 @@
+{
+  "name": "appicon-clone",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "playwright": "^1.62.1",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.1"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  },
+  "description": "Open-source clone of the classic appicon.co — generate every app icon size for iOS, Android, macOS, watchOS and the web, entirely in your browser.",
+  "license": "MIT",
+  "homepage": "https://begiflow.github.io/appicon-clone/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/begiflow/appicon-clone.git"
+  }
+}

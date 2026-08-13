@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>App Icon Generator — iOS, Android, macOS, watchOS &amp; Web</title>
+    <meta
+      name="description"
+      content="Generate every app icon size for iOS, iPadOS, Android, macOS, watchOS and the web from a single 1024×1024 image. Runs entirely in your browser — nothing is uploaded."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#0b0d12" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f7cff'/%3E%3Crect x='9' y='9' width='14' height='14' rx='4' fill='white'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#generator">Skip to generator</a>
+
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="brand" href="./" aria-label="App Icon Generator home">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-text">AppIcon</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#generator">Generator</a>
+          <a href="#platforms">Sizes</a>
+          <a href="#faq">FAQ</a>
+          <a
+            class="nav-cta"
+            href="https://github.com/begiflow/appicon-clone"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero shell">
+        <p class="eyebrow">Free · No signup · No upload</p>
+        <h1>App Icon Generator</h1>
+        <p class="lede">
+          Drop in one 1024&times;1024 image and get every icon size iOS, iPadOS, Android, macOS,
+          watchOS and the web require — with a ready-to-drag <code>Contents.json</code> and
+          adaptive-icon XML.
+        </p>
+        <p class="privacy-note">
+          <span class="lock" aria-hidden="true"></span>
+          Everything runs in your browser. Your image is never sent to a server.
+        </p>
+      </section>
+
+      <section class="shell" id="generator" aria-labelledby="generator-heading">
+        <h2 class="sr-only" id="generator-heading">Generate icons</h2>
+
+        <div class="panel">
+          <!-- Step 1 — source image -->
+          <div class="step">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <div>
+                <h3>Upload your icon</h3>
+                <p>PNG, JPEG, WebP or SVG. 1024&times;1024 recommended.</p>
+              </div>
+            </div>
+
+            <div
+              class="dropzone"
+              id="dropzone"
+              role="button"
+              tabindex="0"
+              aria-label="Drag and drop an image, or press Enter to browse"
+            >
+              <input
+                type="file"
+                id="file-input"
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                hidden
+              />
+              <div class="dropzone-empty" id="dropzone-empty">
+                <svg class="dz-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 16V4m0 0L8 8m4-4l4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                <p class="dz-title">Drag &amp; drop your image here</p>
+                <p class="dz-sub">or <span class="link">browse files</span></p>
+              </div>
+              <div class="dropzone-filled" id="dropzone-filled" hidden>
+                <div class="source-preview">
+                  <img id="source-img" alt="Selected icon preview" />
+                </div>
+                <div class="source-meta">
+                  <p class="source-name" id="source-name"></p>
+                  <p class="source-dims" id="source-dims"></p>
+                  <p class="warn" id="source-warn" hidden></p>
+                  <button class="btn-ghost" type="button" id="clear-btn">Choose another</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 — platforms -->
+          <div class="step">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <div>
+                <h3>Pick your platforms</h3>
+                <p>Select everything you need — shared sizes are rendered once.</p>
+              </div>
+            </div>
+            <div class="platform-grid" id="platform-grid" role="group" aria-label="Platforms"></div>
+          </div>
+
+          <!-- Step 3 — options -->
+          <div class="step">
+            <div class="step-head">
+              <span class="step-num">3</span>
+              <div>
+                <h3>Options</h3>
+                <p>Folder structure and how transparency is handled.</p>
+              </div>
+            </div>
+
+            <div class="options">
+              <label class="field">
+                <span class="field-label">Project layout</span>
+                <select id="layout-select"></select>
+                <span class="field-hint" id="layout-hint"></span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">App name</span>
+                <input type="text" id="app-name" value="My App" maxlength="60" />
+                <span class="field-hint">Used in the PWA manifest.</span>
+              </label>
+
+              <label class="field">
+                <span class="field-label">Background colour</span>
+                <span class="color-row">
+                  <input type="color" id="bg-color" value="#ffffff" aria-label="Background colour" />
+                  <input type="text" id="bg-hex" value="#ffffff" spellcheck="false" />
+                </span>
+                <span class="field-hint"
+                  >Fills transparency where alpha isn't allowed (App&nbsp;Store 1024, adaptive
+                  background).</span
+                >
+              </label>
+
+              <label class="switch">
+                <input type="checkbox" id="force-opaque" />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span class="switch-text">
+                  <strong>Flatten alpha on all Apple icons</strong>
+                  <em>Off: only the App&nbsp;Store marketing icon is flattened.</em>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Step 4 — generate -->
+          <div class="step generate-step">
+            <div class="summary" id="summary" aria-live="polite"></div>
+            <button class="btn-primary" id="generate-btn" type="button" disabled>
+              <span class="btn-label">Generate</span>
+            </button>
+            <div class="progress" id="progress" hidden>
+              <div class="progress-bar"><span id="progress-fill"></span></div>
+              <p class="progress-text" id="progress-text"></p>
+            </div>
+            <p class="error" id="error" hidden role="alert"></p>
+          </div>
+        </div>
+
+        <div class="preview-wrap" id="preview-wrap" hidden>
+          <h3>Preview</h3>
+          <div class="preview-grid" id="preview-grid"></div>
+        </div>
+      </section>
+
+      <section class="shell" id="platforms" aria-labelledby="platforms-heading">
+        <h2 id="platforms-heading">Every size, spelled out</h2>
+        <p class="section-lede">
+          Exact pixel dimensions produced for each platform. Sizes shared between platforms are
+          rendered once and reused.
+        </p>
+        <div class="size-tables" id="size-tables"></div>
+      </section>
+
+      <section class="shell" id="faq" aria-labelledby="faq-heading">
+        <h2 id="faq-heading">FAQ</h2>
+        <div class="faq">
+          <details>
+            <summary>Is my image uploaded anywhere?</summary>
+            <p>
+              No. Decoding, resizing and zipping all happen in your browser using Canvas and a Web
+              Worker. Open DevTools &rarr; Network and you will see no requests after the page
+              loads.
+            </p>
+          </details>
+          <details>
+            <summary>What source image should I use?</summary>
+            <p>
+              A square 1024&times;1024 PNG with no rounded corners baked in. iOS and Android apply
+              their own masks — pre-rounding gives you a double-rounded icon. Non-square images are
+              letterboxed rather than stretched.
+            </p>
+          </details>
+          <details>
+            <summary>Does the generated Contents.json work in Xcode?</summary>
+            <p>
+              Yes. Drag the <code>AppIcon.appiconset</code> folder into your asset catalog, or drop
+              the whole <code>Assets.xcassets</code> in. iPhone and iPad entries are merged into a
+              single set, exactly as Xcode's own template does.
+            </p>
+          </details>
+          <details>
+            <summary>What is the difference between Android and Android Adaptive?</summary>
+            <p>
+              <strong>Android</strong> emits the legacy raster <code>ic_launcher.png</code> and
+              <code>ic_launcher_round.png</code> for API&nbsp;25 and below.
+              <strong>Android Adaptive</strong> emits the API&nbsp;26+ two-layer format: a 108dp
+              foreground with your artwork inset into the 72dp safe zone, a 108dp background, and
+              the <code>mipmap-anydpi-v26</code> XML that binds them. Ship both.
+            </p>
+          </details>
+          <details>
+            <summary>Why does my small icon look soft?</summary>
+            <p>
+              Downscaling 1024px to 40px is done with repeated halving rather than a single
+              <code>drawImage</code>, which avoids the aliasing a naive bilinear resample produces.
+              But detail that is 4px wide at 1024 cannot survive at 40. Design your icon so it reads
+              at 40&times;40.
+            </p>
+          </details>
+          <details>
+            <summary>Can I use SVG as the source?</summary>
+            <p>
+              Yes. SVGs are rasterised at 1024&times;1024 before resizing, so you get clean output at
+              every size.
+            </p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell footer-inner">
+        <p>Open-source clone of the classic appicon.co. Runs entirely client-side.</p>
+        <p>
+          <a
+            href="https://github.com/begiflow/appicon-clone"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Source on GitHub</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
