@@ -16,8 +16,20 @@ import { execFileSync } from 'node:child_process';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
-const BASE = '/appicon-clone/';
 const PORT = 4173;
+
+/**
+ * Serve under whatever `base` the build actually used, read back out of the
+ * emitted markup. Hard-coding it here means a repo rename silently turns this
+ * suite into a 404 check.
+ */
+const BASE = (() => {
+  const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+  const match = html.match(/(?:src|href)="(\/[^"]*\/)assets\//);
+  if (!match) throw new Error('Could not infer base path from dist/index.html');
+  return match[1];
+})();
+console.log(`      serving dist under ${BASE}`);
 
 const MIME = {
   '.html': 'text/html',

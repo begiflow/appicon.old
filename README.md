@@ -4,7 +4,7 @@ A faithful, open-source rebuild of the classic **appicon.co** — the simple
 drag-in-a-1024px-PNG, get-a-zip-of-every-size tool, before the site was replaced
 with an AI product.
 
-**→ https://begiflow.github.io/appicon-clone/**
+**→ https://begiflow.github.io/appicon.old/**
 
 Everything runs in your browser. The source image is decoded, resized, and
 zipped locally; nothing is uploaded, and the page works offline once cached.

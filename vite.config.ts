@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
  * 404s. Overridable via `BASE_PATH` so a custom domain (or a fork under another
  * repo name) can build with `BASE_PATH=/ npm run build`.
  */
-const base = process.env.BASE_PATH ?? '/appicon-clone/';
+const base = process.env.BASE_PATH ?? '/appicon.old/';
 
 export default defineConfig({
   base,

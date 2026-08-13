@@ -21,9 +21,9 @@
   },
   "description": "Open-source clone of the classic appicon.co — generate every app icon size for iOS, Android, macOS, watchOS and the web, entirely in your browser.",
   "license": "MIT",
-  "homepage": "https://begiflow.github.io/appicon-clone/",
+  "homepage": "https://begiflow.github.io/appicon.old/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/begiflow/appicon-clone.git"
+    "url": "https://github.com/begiflow/appicon.old.git"
   }
 }
