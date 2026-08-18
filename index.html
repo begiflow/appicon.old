@@ -6,7 +6,7 @@
     <title>App Icon Generator — iOS, Android, macOS, watchOS &amp; Web</title>
     <meta
       name="description"
-      content="Generate every app icon size for iOS, iPadOS, Android, macOS, watchOS and the web from a single 1024×1024 image. Runs entirely in your browser — nothing is uploaded."
+      content="Generate every app icon size for iOS, iPadOS, Android, macOS, watchOS and the web from a single 1024×1024 image, plus 1x/2x/3x image sets and Android drawables. Runs entirely in your browser — nothing is uploaded."
     />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#0b0d12" />
@@ -16,241 +16,337 @@
     />
   </head>
   <body>
-    <a class="skip-link" href="#generator">Skip to generator</a>
+    <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="site-header">
       <div class="shell header-inner">
         <a class="brand" href="./" aria-label="App Icon Generator home">
           <span class="brand-mark" aria-hidden="true"></span>
-          <span class="brand-text">AppIcon</span>
+          <span class="brand-text">App Icon Generator</span>
         </a>
-        <nav class="site-nav" aria-label="Primary">
-          <a href="#generator">Generator</a>
-          <a href="#platforms">Sizes</a>
-          <a href="#faq">FAQ</a>
-          <a
-            class="nav-cta"
-            href="https://github.com/begiflow/appicon.old"
-            target="_blank"
-            rel="noopener noreferrer"
-            >GitHub</a
-          >
+
+        <nav class="tabs" id="tabs" aria-label="Tools">
+          <button class="tab" type="button" role="tab" data-view="appicon" aria-selected="true">
+            <svg class="tab-glyph" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M3 5.5A1.5 1.5 0 014.5 4h15A1.5 1.5 0 0121 5.5v13a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18.5v-13zm2 11.4l4.2-4.9 3 3.4 2.6-2.9L19 17.2V6H5v10.9zM8.4 10.6a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"
+              />
+            </svg>
+            App Icon
+          </button>
+          <button class="tab" type="button" role="tab" data-view="imagesets" aria-selected="false">
+            <svg class="tab-glyph" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"
+              />
+            </svg>
+            Image Sets
+          </button>
         </nav>
+
+        <a
+          class="nav-cta"
+          href="https://github.com/begiflow/appicon.old"
+          target="_blank"
+          rel="noopener noreferrer"
+          >GitHub</a
+        >
       </div>
     </header>
 
-    <main>
-      <section class="hero shell">
-        <p class="eyebrow">Free · No signup · No upload</p>
-        <h1>App Icon Generator</h1>
-        <p class="lede">
-          Drop in one 1024&times;1024 image and get every icon size iOS, iPadOS, Android, macOS,
-          watchOS and the web require — with a ready-to-drag <code>Contents.json</code> and
-          adaptive-icon XML.
-        </p>
-        <p class="privacy-note">
-          <span class="lock" aria-hidden="true"></span>
-          Everything runs in your browser. Your image is never sent to a server.
-        </p>
-      </section>
+    <main id="main">
+      <!-- ================================================== App Icon view -->
+      <div class="view" id="view-appicon">
+        <section class="hero shell">
+          <p class="eyebrow">Free · No signup · No upload</p>
+          <h1>App Icon Generator</h1>
+          <p class="lede">
+            Drop in one 1024&times;1024 image and get every icon size iOS, iPadOS, Android, macOS,
+            watchOS and the web require — with a ready-to-drag <code>Contents.json</code> and
+            adaptive-icon XML.
+          </p>
+          <p class="privacy-note">
+            <span class="lock" aria-hidden="true"></span>
+            Everything runs in your browser. Your image is never sent to a server.
+          </p>
+        </section>
 
-      <section class="shell" id="generator" aria-labelledby="generator-heading">
-        <h2 class="sr-only" id="generator-heading">Generate icons</h2>
+        <section class="shell" id="generator" aria-labelledby="generator-heading">
+          <h2 class="sr-only" id="generator-heading">Generate icons</h2>
 
-        <div class="panel">
-          <!-- Step 1 — source image -->
-          <div class="step">
-            <div class="step-head">
-              <span class="step-num">1</span>
-              <div>
-                <h3>Upload your icon</h3>
-                <p>PNG, JPEG, WebP or SVG. 1024&times;1024 recommended.</p>
+          <div class="panel">
+            <div class="step">
+              <div class="step-head">
+                <span class="step-num">1</span>
+                <div>
+                  <h3>Upload your icon</h3>
+                  <p>PNG, JPEG, WebP or SVG. 1024&times;1024 recommended.</p>
+                </div>
+              </div>
+
+              <div
+                class="dropzone"
+                id="dropzone"
+                role="button"
+                tabindex="0"
+                aria-label="Drag and drop an image, or press Enter to browse"
+              >
+                <input
+                  type="file"
+                  id="file-input"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  hidden
+                />
+                <div class="dropzone-empty" id="dropzone-empty">
+                  <svg class="dz-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 16V4m0 0L8 8m4-4l4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                  <p class="dz-title">Drag &amp; drop your image here</p>
+                  <p class="dz-sub">or <span class="link">browse files</span></p>
+                </div>
+                <div class="dropzone-filled" id="dropzone-filled" hidden>
+                  <div class="source-preview">
+                    <img id="source-img" alt="Selected icon preview" />
+                  </div>
+                  <div class="source-meta">
+                    <p class="source-name" id="source-name"></p>
+                    <p class="source-dims" id="source-dims"></p>
+                    <p class="warn" id="source-warn" hidden></p>
+                    <button class="btn-ghost" type="button" id="clear-btn">Choose another</button>
+                  </div>
+                </div>
               </div>
             </div>
 
+            <div class="step">
+              <div class="step-head">
+                <span class="step-num">2</span>
+                <div>
+                  <h3>Pick your platforms</h3>
+                  <p>Select everything you need — shared sizes are rendered once.</p>
+                </div>
+              </div>
+              <div
+                class="platform-grid"
+                id="platform-grid"
+                role="group"
+                aria-label="Platforms"
+              ></div>
+            </div>
+
+            <div class="step">
+              <div class="step-head">
+                <span class="step-num">3</span>
+                <div>
+                  <h3>Options</h3>
+                  <p>Folder structure and how transparency is handled.</p>
+                </div>
+              </div>
+
+              <div class="options">
+                <label class="field">
+                  <span class="field-label">Project layout</span>
+                  <select id="layout-select"></select>
+                  <span class="field-hint" id="layout-hint"></span>
+                </label>
+
+                <label class="field">
+                  <span class="field-label">App name</span>
+                  <input type="text" id="app-name" value="My App" maxlength="60" />
+                  <span class="field-hint">Used in the PWA manifest.</span>
+                </label>
+
+                <label class="field">
+                  <span class="field-label">Background colour</span>
+                  <span class="color-row">
+                    <input
+                      type="color"
+                      id="bg-color"
+                      value="#ffffff"
+                      aria-label="Background colour"
+                    />
+                    <input type="text" id="bg-hex" value="#ffffff" spellcheck="false" />
+                  </span>
+                  <span class="field-hint"
+                    >Fills transparency where alpha isn't allowed (App&nbsp;Store 1024, adaptive
+                    background).</span
+                  >
+                </label>
+
+                <label class="switch">
+                  <input type="checkbox" id="force-opaque" />
+                  <span class="switch-track" aria-hidden="true"></span>
+                  <span class="switch-text">
+                    <strong>Flatten alpha on all Apple icons</strong>
+                    <em>Off: only the App&nbsp;Store marketing icon is flattened.</em>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div class="step generate-step">
+              <div class="summary" id="summary" aria-live="polite"></div>
+              <button class="btn-primary" id="generate-btn" type="button" disabled>
+                <span class="btn-label">Generate</span>
+              </button>
+              <div class="progress" id="progress" hidden>
+                <div class="progress-bar"><span id="progress-fill"></span></div>
+                <p class="progress-text" id="progress-text"></p>
+              </div>
+              <p class="error" id="error" hidden role="alert"></p>
+            </div>
+          </div>
+
+          <div class="preview-wrap" id="preview-wrap" hidden>
+            <h3>Preview</h3>
+            <div class="preview-grid" id="preview-grid"></div>
+          </div>
+        </section>
+
+        <section class="shell" id="platforms" aria-labelledby="platforms-heading">
+          <h2 id="platforms-heading">Every size, spelled out</h2>
+          <p class="section-lede">
+            Exact pixel dimensions produced for each platform. Sizes shared between platforms are
+            rendered once and reused.
+          </p>
+          <div class="size-tables" id="size-tables"></div>
+        </section>
+
+        <section class="shell" id="faq" aria-labelledby="faq-heading">
+          <h2 id="faq-heading">FAQ</h2>
+          <div class="faq">
+            <details>
+              <summary>Is my image uploaded anywhere?</summary>
+              <p>
+                No. Decoding, resizing and zipping all happen in your browser using Canvas and a Web
+                Worker. Open DevTools &rarr; Network and you will see no requests after the page
+                loads.
+              </p>
+            </details>
+            <details>
+              <summary>What source image should I use?</summary>
+              <p>
+                A square 1024&times;1024 PNG with no rounded corners baked in. iOS and Android apply
+                their own masks — pre-rounding gives you a double-rounded icon. Non-square images
+                are letterboxed rather than stretched.
+              </p>
+            </details>
+            <details>
+              <summary>Does the generated Contents.json work in Xcode?</summary>
+              <p>
+                Yes. Drag the <code>AppIcon.appiconset</code> folder into your asset catalog, or
+                drop the whole <code>Assets.xcassets</code> in. iPhone and iPad entries are merged
+                into a single set, exactly as Xcode's own template does.
+              </p>
+            </details>
+            <details>
+              <summary>What is the difference between Android and Android Adaptive?</summary>
+              <p>
+                <strong>Android</strong> emits the legacy raster <code>ic_launcher.png</code> and
+                <code>ic_launcher_round.png</code> for API&nbsp;25 and below.
+                <strong>Android Adaptive</strong> emits the API&nbsp;26+ two-layer format: a 108dp
+                foreground with your artwork inset into the 72dp safe zone, a 108dp background, and
+                the <code>mipmap-anydpi-v26</code> XML that binds them. Ship both.
+              </p>
+            </details>
+            <details>
+              <summary>What is the difference between App Icon and Image Sets?</summary>
+              <p>
+                <strong>App Icon</strong> makes the launcher icon: square, fixed pixel sizes, one
+                per platform slot. <strong>Image Sets</strong> makes ordinary in-app assets —
+                buttons, illustrations, logos — which keep their own aspect ratio and ship as
+                1x/2x/3x for iOS and <code>drawable-*dpi</code> for Android.
+              </p>
+            </details>
+            <details>
+              <summary>Why does my small icon look soft?</summary>
+              <p>
+                Downscaling 1024px to 40px is done with repeated halving rather than a single
+                <code>drawImage</code>, which avoids the aliasing a naive bilinear resample
+                produces. But detail that is 4px wide at 1024 cannot survive at 40. Design your icon
+                so it reads at 40&times;40.
+              </p>
+            </details>
+          </div>
+        </section>
+      </div>
+
+      <!-- =============================================== Image Sets view -->
+      <div class="view" id="view-imagesets" hidden>
+        <section class="shell imageset-shell" aria-labelledby="imageset-heading">
+          <div class="imageset-layout">
             <div
-              class="dropzone"
-              id="dropzone"
+              class="is-dropzone"
+              id="is-dropzone"
               role="button"
               tabindex="0"
-              aria-label="Drag and drop an image, or press Enter to browse"
+              aria-label="Drag and drop images, or press Enter to browse"
             >
               <input
                 type="file"
-                id="file-input"
+                id="is-file-input"
                 accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                multiple
                 hidden
               />
-              <div class="dropzone-empty" id="dropzone-empty">
-                <svg class="dz-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <div class="is-empty" id="is-empty">
+                <svg class="is-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path
-                    d="M12 16V4m0 0L8 8m4-4l4 4M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.6"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    d="M3 5.5A1.5 1.5 0 014.5 4h15A1.5 1.5 0 0121 5.5v13a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18.5v-13zm2 11.4l4.2-4.9 3 3.4 2.6-2.9L19 17.2V6H5v10.9zM8.4 10.6a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"
                   />
                 </svg>
-                <p class="dz-title">Drag &amp; drop your image here</p>
-                <p class="dz-sub">or <span class="link">browse files</span></p>
+                <p>Click or drag largest image(s) to this area</p>
               </div>
-              <div class="dropzone-filled" id="dropzone-filled" hidden>
-                <div class="source-preview">
-                  <img id="source-img" alt="Selected icon preview" />
-                </div>
-                <div class="source-meta">
-                  <p class="source-name" id="source-name"></p>
-                  <p class="source-dims" id="source-dims"></p>
-                  <p class="warn" id="source-warn" hidden></p>
-                  <button class="btn-ghost" type="button" id="clear-btn">Choose another</button>
-                </div>
+              <ul class="is-list" id="is-list" hidden></ul>
+            </div>
+
+            <div class="imageset-panel">
+              <h2 id="imageset-heading">Image sets Generator</h2>
+
+              <p class="is-label">Select your design base size</p>
+              <div class="base-row" role="radiogroup" aria-label="Design base size">
+                <label class="base-opt">
+                  <input type="radio" name="base-scale" value="3" />
+                  <span class="base-box" aria-hidden="true"></span>
+                  <span class="base-text">3x</span>
+                </label>
+                <span class="base-or">OR</span>
+                <label class="base-opt">
+                  <input type="radio" name="base-scale" value="4" checked />
+                  <span class="base-box" aria-hidden="true"></span>
+                  <span class="base-text">4x</span>
+                </label>
               </div>
+
+              <p class="is-hint">
+                Drag or select the largest image(s) to generate different sizes for all platforms
+              </p>
+
+              <div class="is-platforms" id="is-platforms" role="group" aria-label="Platforms"></div>
+
+              <p class="warn" id="is-warn" hidden></p>
+              <div class="summary is-summary" id="is-summary" aria-live="polite"></div>
+
+              <button class="btn-primary is-generate" id="is-generate-btn" type="button" disabled>
+                <span class="btn-label">Generate</span>
+              </button>
+
+              <div class="progress" id="is-progress" hidden>
+                <div class="progress-bar"><span id="is-progress-fill"></span></div>
+                <p class="progress-text" id="is-progress-text"></p>
+              </div>
+              <p class="error" id="is-error" hidden role="alert"></p>
             </div>
           </div>
-
-          <!-- Step 2 — platforms -->
-          <div class="step">
-            <div class="step-head">
-              <span class="step-num">2</span>
-              <div>
-                <h3>Pick your platforms</h3>
-                <p>Select everything you need — shared sizes are rendered once.</p>
-              </div>
-            </div>
-            <div class="platform-grid" id="platform-grid" role="group" aria-label="Platforms"></div>
-          </div>
-
-          <!-- Step 3 — options -->
-          <div class="step">
-            <div class="step-head">
-              <span class="step-num">3</span>
-              <div>
-                <h3>Options</h3>
-                <p>Folder structure and how transparency is handled.</p>
-              </div>
-            </div>
-
-            <div class="options">
-              <label class="field">
-                <span class="field-label">Project layout</span>
-                <select id="layout-select"></select>
-                <span class="field-hint" id="layout-hint"></span>
-              </label>
-
-              <label class="field">
-                <span class="field-label">App name</span>
-                <input type="text" id="app-name" value="My App" maxlength="60" />
-                <span class="field-hint">Used in the PWA manifest.</span>
-              </label>
-
-              <label class="field">
-                <span class="field-label">Background colour</span>
-                <span class="color-row">
-                  <input type="color" id="bg-color" value="#ffffff" aria-label="Background colour" />
-                  <input type="text" id="bg-hex" value="#ffffff" spellcheck="false" />
-                </span>
-                <span class="field-hint"
-                  >Fills transparency where alpha isn't allowed (App&nbsp;Store 1024, adaptive
-                  background).</span
-                >
-              </label>
-
-              <label class="switch">
-                <input type="checkbox" id="force-opaque" />
-                <span class="switch-track" aria-hidden="true"></span>
-                <span class="switch-text">
-                  <strong>Flatten alpha on all Apple icons</strong>
-                  <em>Off: only the App&nbsp;Store marketing icon is flattened.</em>
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Step 4 — generate -->
-          <div class="step generate-step">
-            <div class="summary" id="summary" aria-live="polite"></div>
-            <button class="btn-primary" id="generate-btn" type="button" disabled>
-              <span class="btn-label">Generate</span>
-            </button>
-            <div class="progress" id="progress" hidden>
-              <div class="progress-bar"><span id="progress-fill"></span></div>
-              <p class="progress-text" id="progress-text"></p>
-            </div>
-            <p class="error" id="error" hidden role="alert"></p>
-          </div>
-        </div>
-
-        <div class="preview-wrap" id="preview-wrap" hidden>
-          <h3>Preview</h3>
-          <div class="preview-grid" id="preview-grid"></div>
-        </div>
-      </section>
-
-      <section class="shell" id="platforms" aria-labelledby="platforms-heading">
-        <h2 id="platforms-heading">Every size, spelled out</h2>
-        <p class="section-lede">
-          Exact pixel dimensions produced for each platform. Sizes shared between platforms are
-          rendered once and reused.
-        </p>
-        <div class="size-tables" id="size-tables"></div>
-      </section>
-
-      <section class="shell" id="faq" aria-labelledby="faq-heading">
-        <h2 id="faq-heading">FAQ</h2>
-        <div class="faq">
-          <details>
-            <summary>Is my image uploaded anywhere?</summary>
-            <p>
-              No. Decoding, resizing and zipping all happen in your browser using Canvas and a Web
-              Worker. Open DevTools &rarr; Network and you will see no requests after the page
-              loads.
-            </p>
-          </details>
-          <details>
-            <summary>What source image should I use?</summary>
-            <p>
-              A square 1024&times;1024 PNG with no rounded corners baked in. iOS and Android apply
-              their own masks — pre-rounding gives you a double-rounded icon. Non-square images are
-              letterboxed rather than stretched.
-            </p>
-          </details>
-          <details>
-            <summary>Does the generated Contents.json work in Xcode?</summary>
-            <p>
-              Yes. Drag the <code>AppIcon.appiconset</code> folder into your asset catalog, or drop
-              the whole <code>Assets.xcassets</code> in. iPhone and iPad entries are merged into a
-              single set, exactly as Xcode's own template does.
-            </p>
-          </details>
-          <details>
-            <summary>What is the difference between Android and Android Adaptive?</summary>
-            <p>
-              <strong>Android</strong> emits the legacy raster <code>ic_launcher.png</code> and
-              <code>ic_launcher_round.png</code> for API&nbsp;25 and below.
-              <strong>Android Adaptive</strong> emits the API&nbsp;26+ two-layer format: a 108dp
-              foreground with your artwork inset into the 72dp safe zone, a 108dp background, and
-              the <code>mipmap-anydpi-v26</code> XML that binds them. Ship both.
-            </p>
-          </details>
-          <details>
-            <summary>Why does my small icon look soft?</summary>
-            <p>
-              Downscaling 1024px to 40px is done with repeated halving rather than a single
-              <code>drawImage</code>, which avoids the aliasing a naive bilinear resample produces.
-              But detail that is 4px wide at 1024 cannot survive at 40. Design your icon so it reads
-              at 40&times;40.
-            </p>
-          </details>
-          <details>
-            <summary>Can I use SVG as the source?</summary>
-            <p>
-              Yes. SVGs are rasterised at 1024&times;1024 before resizing, so you get clean output at
-              every size.
-            </p>
-          </details>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
 
     <footer class="site-footer">

@@ -34,3 +34,19 @@ export function normaliseHex(input: string): string | null {
   if (/^[0-9a-fA-F]{6}$/.test(raw)) return `#${raw.toLowerCase()}`;
   return null;
 }
+
+/**
+ * Hands a Blob to the browser as a download.
+ *
+ * The object URL is released on a timer rather than immediately: revoking in
+ * the same tick cancels the download in Firefox, because the fetch of the blob
+ * has not started yet when the anchor click returns.
+ */
+export function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

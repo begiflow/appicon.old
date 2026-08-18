@@ -67,7 +67,7 @@ export function buildPlan(selected: readonly PlatformId[], opts: GenerateOptions
 
   const addJob = (px: number, mode: RenderMode): string => {
     const id = jobId(px, mode);
-    if (!jobs.has(id)) jobs.set(id, { id, px, mode });
+    if (!jobs.has(id)) jobs.set(id, { kind: 'icon', id, source: 0, px, mode });
     return id;
   };
 

@@ -121,3 +121,23 @@ export async function encodePng(canvas: OffscreenCanvas): Promise<Uint8Array> {
   const blob = await canvas.convertToBlob({ type: 'image/png' });
   return new Uint8Array(await blob.arrayBuffer());
 }
+
+/**
+ * Straight aspect-preserving resample to an exact pixel size.
+ *
+ * Unlike `renderIcon`, this never pads to a square and never composites a
+ * background — an image-set asset is a plain bitmap that has to keep its own
+ * aspect ratio and alpha. The caller computes `dw`/`dh` from the scale factor,
+ * so any rounding policy lives in one place rather than here.
+ */
+export function renderScaled(src: Drawable, dw: number, dh: number): OffscreenCanvas {
+  const w = Math.max(1, Math.round(dw));
+  const h = Math.max(1, Math.round(dh));
+  const scaled = progressiveResize(src, w, h);
+  if (scaled instanceof OffscreenCanvas && scaled.width === w && scaled.height === h) {
+    return scaled;
+  }
+  const out = new OffscreenCanvas(w, h);
+  ctx2d(out).drawImage(scaled, 0, 0, w, h);
+  return out;
+}

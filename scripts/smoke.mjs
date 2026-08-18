@@ -76,13 +76,13 @@ function pngChunk(type, data) {
 }
 
 /** RGBA PNG with a coloured disc, so downscale artefacts would be visible. */
-function makePng(size) {
-  const raw = Buffer.alloc((size * 4 + 1) * size);
+function makePng(size, height = size) {
+  const raw = Buffer.alloc((size * 4 + 1) * height);
   let o = 0;
-  for (let y = 0; y < size; y++) {
+  for (let y = 0; y < height; y++) {
     raw[o++] = 0; // filter: none
     for (let x = 0; x < size; x++) {
-      const inside = (x - size / 2) ** 2 + (y - size / 2) ** 2 < (size * 0.4) ** 2;
+      const inside = (x - size / 2) ** 2 + (y - height / 2) ** 2 < (size * 0.4) ** 2;
       raw[o++] = inside ? 40 : 250;
       raw[o++] = inside ? 110 : 80;
       raw[o++] = inside ? 240 : 60;
@@ -91,7 +91,7 @@ function makePng(size) {
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(size, 0);
-  ihdr.writeUInt32BE(size, 4);
+  ihdr.writeUInt32BE(height, 4);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 6; // colour type: RGBA
   return Buffer.concat([
@@ -292,6 +292,156 @@ check(
   read('android/res/mipmap-anydpi-v26/ic_launcher.xml').toString().includes('<adaptive-icon'),
   'adaptive-icon XML well formed',
 );
+
+
+/* ============================================================ image sets */
+
+console.log('\n--- Image Sets ---');
+
+// 800x400 at 4x means 1x is 200x100 — a clean non-square case that also proves
+// aspect ratio survives, which a square fixture could never show.
+// In a temp directory, not prefixed on the file itself: the filename *is* the
+// resource name under test, so a `.tmp-` prefix would silently change it.
+const fixtures = path.join(root, '.tmp-fixtures');
+fs.mkdirSync(fixtures, { recursive: true });
+const wideA = path.join(fixtures, 'Hero Banner@4x.png');
+const wideB = path.join(fixtures, 'hero-banner.png');
+fs.writeFileSync(wideA, makePng(800, 400));
+fs.writeFileSync(wideB, makePng(800, 400));
+
+const server2 = http.createServer((req, res) => {
+  let rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (!rel.startsWith(BASE)) return void res.writeHead(404).end();
+  rel = rel.slice(BASE.length) || 'index.html';
+  const file = path.join(dist, rel);
+  if (!file.startsWith(dist) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    return void res.writeHead(404).end();
+  }
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream' });
+  fs.createReadStream(file).pipe(res);
+});
+await new Promise((r) => server2.listen(PORT + 1, r));
+
+const browser2 = await chromium.launch(executablePath ? { executablePath } : {});
+const page2 = await browser2.newPage();
+const errors2 = [];
+page2.on('console', (m) => m.type() === 'error' && errors2.push(m.text()));
+page2.on('pageerror', (e) => errors2.push(String(e)));
+
+// Deep-link straight into the tab, which also exercises hash routing.
+await page2.goto(`http://localhost:${PORT + 1}${BASE}#image-sets`, { waitUntil: 'networkidle' });
+
+check(await page2.locator('#view-imagesets').isVisible(), '#image-sets hash opens the Image Sets tab');
+check(await page2.locator('#view-appicon').isHidden(), 'App Icon view hidden while on Image Sets');
+check(await page2.locator('#is-generate-btn').isDisabled(), 'image-set generate disabled when empty');
+check(await page2.locator('input[name="base-scale"][value="4"]').isChecked(), '4x is the default base');
+
+await page2.locator('#is-file-input').setInputFiles([wideA, wideB]);
+await page2.waitForSelector('.is-item');
+check((await page2.locator('.is-item').count()) === 2, 'both images listed');
+console.log('      summary:', (await page2.locator('#is-summary').textContent()).trim());
+
+// 4x base covers xxxhdpi, so no upscale warning.
+check(await page2.locator('#is-warn').isHidden(), 'no upscale warning at 4x base');
+// The radio is visually hidden; a user clicks the label. `.base-opt` index 0
+// is 3x, index 1 is 4x.
+await page2.locator('.base-opt').nth(0).click();
+await page2.waitForTimeout(100);
+check(!(await page2.locator('#is-warn').isHidden()), 'upscale warning appears at 3x base with Android');
+await page2.locator('.base-opt').nth(1).click();
+await page2.waitForTimeout(100);
+check(await page2.locator('#is-warn').isHidden(), 'warning clears when base returns to 4x');
+
+const [dl2] = await Promise.all([
+  page2.waitForEvent('download', { timeout: 60_000 }),
+  page2.locator('#is-generate-btn').click(),
+]);
+const isZip = path.join(root, '.tmp-ImageSets.zip');
+await dl2.saveAs(isZip);
+check(dl2.suggestedFilename() === 'ImageSets.zip', 'download named ImageSets.zip');
+
+await page2.waitForFunction(
+  () => document.getElementById('is-progress-text')?.textContent?.startsWith('Done'),
+  null,
+  { timeout: 30_000 },
+);
+console.log('      ', (await page2.locator('#is-progress-text').textContent()).trim());
+check(errors2.length === 0, `no console errors${errors2.length ? ': ' + errors2.join(' | ') : ''}`);
+
+await browser2.close();
+server2.close();
+
+const list2 = execFileSync('unzip', ['-Z1', isZip], { encoding: 'utf8' }).trim().split('\n');
+const read2 = (p) => {
+  try {
+    return execFileSync('unzip', ['-p', isZip, p], { maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return Buffer.alloc(0);
+  }
+};
+console.log(`      ${list2.length} entries in archive`);
+
+// `Hero Banner@4x.png` -> iOS keeps the readable stem, Android must not.
+for (const p of [
+  'ios/Hero Banner.imageset/Contents.json',
+  'ios/Hero Banner.imageset/Hero Banner.png',
+  'ios/Hero Banner.imageset/Hero Banner@2x.png',
+  'ios/Hero Banner.imageset/Hero Banner@3x.png',
+  'android/res/drawable-mdpi/hero_banner.png',
+  'android/res/drawable-hdpi/hero_banner.png',
+  'android/res/drawable-xhdpi/hero_banner.png',
+  'android/res/drawable-xxhdpi/hero_banner.png',
+  'android/res/drawable-xxxhdpi/hero_banner.png',
+  'README.txt',
+]) {
+  check(list2.includes(p), `image sets contain ${p}`);
+}
+
+check(
+  !list2.some((f) => f.startsWith('android/') && /[A-Z ]/.test(f.split('/').pop())),
+  'no Android resource name has uppercase or spaces (aapt would reject)',
+);
+check(
+  list2.includes('android/res/drawable-mdpi/hero_banner_2.png'),
+  'colliding Android names are disambiguated with a suffix',
+);
+
+const isJson = JSON.parse(read2('ios/Hero Banner.imageset/Contents.json').toString());
+check(isJson.images.length === 3, `imageset Contents.json lists 3 scales (got ${isJson.images.length})`);
+check(
+  isJson.images.every((i) => i.idiom === 'universal'),
+  'every imageset entry uses idiom universal',
+);
+check(
+  ['1x', '2x', '3x'].every((s) => isJson.images.some((i) => i.scale === s)),
+  'imageset covers 1x, 2x and 3x',
+);
+{
+  const present = new Set(
+    list2.filter((f) => f.startsWith('ios/Hero Banner.imageset/')).map((f) => f.split('/').pop()),
+  );
+  const missing = isJson.images.filter((i) => !present.has(i.filename)).map((i) => i.filename);
+  check(missing.length === 0, `imageset references only existing files${missing.length ? ' — missing ' + missing.join(',') : ''}`);
+}
+
+// Source is 800x400 declared as 4x, so 1x = 200x100 and aspect ratio must hold.
+for (const [p, w, h] of [
+  ['ios/Hero Banner.imageset/Hero Banner.png', 200, 100],
+  ['ios/Hero Banner.imageset/Hero Banner@2x.png', 400, 200],
+  ['ios/Hero Banner.imageset/Hero Banner@3x.png', 600, 300],
+  ['android/res/drawable-mdpi/hero_banner.png', 200, 100],
+  ['android/res/drawable-hdpi/hero_banner.png', 300, 150],
+  ['android/res/drawable-xhdpi/hero_banner.png', 400, 200],
+  ['android/res/drawable-xxhdpi/hero_banner.png', 600, 300],
+  ['android/res/drawable-xxxhdpi/hero_banner.png', 800, 400],
+]) {
+  const buf = read2(p);
+  const [gw, gh] = [buf.readUInt32BE(16), buf.readUInt32BE(20)];
+  check(gw === w && gh === h, `${p} is ${w}x${h} (got ${gw}x${gh})`);
+}
+
+fs.rmSync(fixtures, { recursive: true, force: true });
+fs.rmSync(isZip, { force: true });
 
 fs.rmSync(srcPng, { force: true });
 fs.rmSync(zipPath, { force: true });

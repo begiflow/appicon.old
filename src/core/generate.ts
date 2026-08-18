@@ -1,16 +1,14 @@
 /**
- * Orchestrates: source image -> worker renders -> zip.
+ * App-icon pipeline: source image -> worker renders -> zip.
  *
  * Everything runs in the browser. No byte of the user's artwork is ever sent
  * anywhere — the network is not touched after the page loads.
  */
 
-import { zip } from 'fflate';
 import type { GenerateOptions, PlatformId } from '../specs/types';
 import { buildPlan, type Plan } from './plan';
 import { buildIco } from './ico';
-import type { WorkerRequest, WorkerResponse } from './protocol';
-import { encodePng, renderIcon } from './render';
+import { runJobs, toZipBlob, zipAsync, type ProgressFn } from './runner';
 
 export interface GenerateResult {
   readonly blob: Blob;
@@ -19,84 +17,9 @@ export interface GenerateResult {
   readonly elapsedMs: number;
 }
 
-export type ProgressFn = (done: number, total: number) => void;
+export type { ProgressFn };
 
-const READY_STATE_TIMEOUT_MS = 60_000;
 const encoder = new TextEncoder();
-
-function createWorker(): Worker {
-  return new Worker(new URL('./render.worker.ts', import.meta.url), { type: 'module' });
-}
-
-/**
- * Runs the plan's jobs. Uses a worker when available and falls back to the main
- * thread if worker construction fails (strict CSP, some in-app browsers).
- */
-async function renderAll(
-  bitmap: ImageBitmap,
-  plan: Plan,
-  opts: GenerateOptions,
-  onProgress: ProgressFn,
-): Promise<Map<string, Uint8Array>> {
-  const total = plan.jobs.length;
-
-  let worker: Worker;
-  try {
-    worker = createWorker();
-  } catch {
-    const out = new Map<string, Uint8Array>();
-    let done = 0;
-    for (const job of plan.jobs) {
-      out.set(job.id, await encodePng(renderIcon(bitmap, job.px, job.mode, opts.background)));
-      onProgress((done += 1), total);
-    }
-    bitmap.close();
-    return out;
-  }
-
-  return new Promise<Map<string, Uint8Array>>((resolve, reject) => {
-    const out = new Map<string, Uint8Array>();
-    const timer = setTimeout(() => {
-      worker.terminate();
-      reject(new Error('Rendering timed out'));
-    }, READY_STATE_TIMEOUT_MS);
-
-    const finish = (fn: () => void) => {
-      clearTimeout(timer);
-      worker.terminate();
-      fn();
-    };
-
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const msg = event.data;
-      if (msg.type === 'result') {
-        out.set(msg.id, msg.png);
-        onProgress(msg.done, total);
-      } else if (msg.type === 'complete') {
-        finish(() => resolve(out));
-      } else {
-        finish(() => reject(new Error(msg.message)));
-      }
-    };
-    worker.onerror = (event) => finish(() => reject(new Error(event.message || 'Worker failed')));
-
-    const request: WorkerRequest = {
-      type: 'render',
-      bitmap,
-      background: opts.background,
-      jobs: plan.jobs,
-    };
-    worker.postMessage(request, [bitmap]);
-  });
-}
-
-function zipAsync(files: Record<string, Uint8Array>): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    // level 6: PNGs are already DEFLATE-compressed, so a higher level costs CPU
-    // for well under 1% size. The win is in storing them, not squeezing them.
-    zip(files, { level: 6 }, (err, data) => (err ? reject(err) : resolve(data)));
-  });
-}
 
 export async function generate(
   source: Blob,
@@ -109,7 +32,7 @@ export async function generate(
   const started = performance.now();
   const plan = buildPlan(selected, opts);
   const bitmap = await createImageBitmap(source);
-  const rendered = await renderAll(bitmap, plan, opts, onProgress);
+  const rendered = await runJobs([bitmap], plan.jobs, opts.background, onProgress);
 
   const entries: Record<string, Uint8Array> = {};
 
@@ -131,10 +54,7 @@ export async function generate(
 
   entries['README.txt'] = encoder.encode(readme(plan, opts));
 
-  const archive = await zipAsync(entries);
-  // Copy into a fresh ArrayBuffer so the Blob is not backed by a view into a
-  // larger pooled buffer.
-  const blob = new Blob([archive.slice().buffer as ArrayBuffer], { type: 'application/zip' });
+  const blob = toZipBlob(await zipAsync(entries));
 
   return {
     blob,

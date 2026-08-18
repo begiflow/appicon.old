@@ -91,18 +91,25 @@ export function sourceWarning(source: SourceImage): string | null {
   return null;
 }
 
-/** Wires drop, click, keyboard and paste onto the dropzone. */
-export function attachSourcePicker(
+/**
+ * Wires click, keyboard and drag-and-drop onto a dropzone.
+ *
+ * Deliberately does NOT bind a document-level paste handler: two dropzones now
+ * exist and a global listener in here would fire both. Paste is routed by the
+ * active view instead — see `attachPaste`.
+ */
+export function attachDropzone(
   dropzone: HTMLElement,
   input: HTMLInputElement,
-  onFile: (file: File) => void,
+  onFiles: (files: File[]) => void,
+  isFull: () => boolean = () => false,
 ): void {
   const openPicker = () => input.click();
 
   dropzone.addEventListener('click', (event) => {
-    // Let the "choose another" button and preview controls handle their own clicks.
+    // Let buttons inside the zone (remove, "choose another") handle themselves.
     if ((event.target as HTMLElement).closest('button')) return;
-    if (!dropzone.classList.contains('has-file')) openPicker();
+    if (!isFull()) openPicker();
   });
 
   dropzone.addEventListener('keydown', (event) => {
@@ -113,8 +120,8 @@ export function attachSourcePicker(
   });
 
   input.addEventListener('change', () => {
-    const file = input.files?.[0];
-    if (file) onFile(file);
+    const files = [...(input.files ?? [])];
+    if (files.length > 0) onFiles(files);
     input.value = ''; // allow re-picking the same file
   });
 
@@ -138,17 +145,21 @@ export function attachSourcePicker(
   dropzone.addEventListener('drop', (event) => {
     stop(event);
     dropzone.classList.remove('is-over');
-    const file = event.dataTransfer?.files?.[0];
-    if (file) onFile(file);
+    const files = [...(event.dataTransfer?.files ?? [])];
+    if (files.length > 0) onFiles(files);
   });
+}
 
-  // Whole-document paste: dropping an icon straight from a design tool.
+/** One document-level paste listener, dispatched by the caller. */
+export function attachPaste(onFiles: (files: File[]) => void): void {
   document.addEventListener('paste', (event) => {
-    const file = event.clipboardData?.files?.[0];
-    if (file) onFile(file);
+    const files = [...(event.clipboardData?.files ?? [])];
+    if (files.length > 0) onFiles(files);
   });
+}
 
-  // Prevent the browser from navigating away when a drop misses the zone.
+/** Stop the browser navigating away when a drop lands outside a dropzone. */
+export function guardWindowDrops(): void {
   window.addEventListener('dragover', (event) => event.preventDefault());
   window.addEventListener('drop', (event) => event.preventDefault());
 }

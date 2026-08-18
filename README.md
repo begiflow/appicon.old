@@ -2,7 +2,7 @@
 
 A faithful, open-source rebuild of the classic **appicon.co** — the simple
 drag-in-a-1024px-PNG, get-a-zip-of-every-size tool, before the site was replaced
-with an AI product.
+with an AI product. Both tabs: **App Icon** and **Image Sets**.
 
 **→ https://begiflow.github.io/appicon.old/**
 
@@ -11,7 +11,7 @@ zipped locally; nothing is uploaded, and the page works offline once cached.
 
 ---
 
-## What it produces
+## App Icon
 
 | Platform             | Files | Output                                                                   |
 | -------------------- | ----- | ------------------------------------------------------------------------ |
@@ -33,6 +33,30 @@ The same pixels, three folder structures:
 - **Standard** — `ios/`, `android/`, `macos/`, `watchos/`, `web/`
 - **Flutter** — `ios/Runner/Assets.xcassets/`, `android/app/src/main/`, `web/icons/`
 - **React Native** — `ios/Images.xcassets/`, `android/app/src/main/`
+
+---
+
+## Image Sets
+
+For ordinary in-app assets — buttons, illustrations, logos — rather than
+launcher icons. Drop in a batch of images, declare which scale they represent,
+and get every density back with the aspect ratio intact.
+
+| | Output |
+| --- | --- |
+| **iOS** | `<Name>.imageset/` with `<Name>.png`, `<Name>@2x.png`, `<Name>@3x.png` and a `Contents.json` wired to all three scales |
+| **Android** | `res/drawable-mdpi` … `drawable-xxxhdpi` at 1 / 1.5 / 2 / 3 / 4× |
+
+**Design base size** — say whether your export is 3x or 4x. Everything is
+derived by dividing down from there, so nothing is ever upscaled silently. Pick
+3x with Android selected and the UI tells you `xxxhdpi` (4x) cannot be satisfied
+rather than shipping you a soft asset.
+
+**Resource names are sanitised per platform.** `Hero Banner@4x.png` becomes the
+`Hero Banner` imageset on iOS and `hero_banner.png` on Android, because `aapt`
+rejects any file under `res/` outside `[a-z_][a-z0-9_]*` — and it fails at build
+time, far from the asset that caused it. The trailing `@4x` is stripped, camel
+case is split before flattening, and collisions get a numeric suffix.
 
 ---
 
@@ -65,6 +89,16 @@ platform silently overwrites the first, which is a bug several generators ship.
 payloads in an ICO container rather than encoding DIBs, avoiding bottom-up row
 order and AND-mask padding entirely.
 
+**One worker, two pipelines.** [`src/core/runner.ts`](src/core/runner.ts) takes
+a list of source bitmaps plus jobs that index into them, so the app-icon path
+(one source, square output) and the image-set path (many sources, aspect
+preserved) share the transfer bookkeeping, timeout and fallback rather than
+duplicating them.
+
+**fflate is imported statically on purpose.** A dynamic import would split it
+into a lazy chunk, and this page claims to work offline — a first-time offline
+user would get all the way to a rendered set of icons and then fail at the zip.
+
 ---
 
 ## Stack
@@ -79,13 +113,15 @@ zipping, no UI framework. Ships **~34 kB JS / 14 kB gzipped**.
 npm install
 npm run dev            # http://localhost:5173
 npm run build          # tsc + vite build → dist/
-npm run test           # headless end-to-end check (55 assertions)
+npm run test           # headless end-to-end check (91 assertions)
 ```
 
-The test suite builds the site, serves it under the Pages sub-path, drives real
-Chromium through upload → select-all → generate, then unzips the result and
-asserts PNG dimensions from the IHDR chunk, catalog/file cross-references, ICO
-container structure, and manifest contents.
+The test suite builds the site, serves it under the Pages sub-path, and drives
+real Chromium through both tabs — upload → select-all → generate — then unzips
+each result and asserts PNG dimensions read from the IHDR chunk, catalog/file
+cross-references, ICO container structure, manifest contents, hash routing, the
+upscale warning, aspect-ratio preservation, and that no Android resource name
+would make `aapt` fail.
 
 ```bash
 # If your Chromium lives somewhere Playwright doesn't expect:
