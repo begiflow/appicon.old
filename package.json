@@ -8,7 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "npm run build && node scripts/smoke.mjs"
+    "test": "npm run build && node --experimental-strip-types scripts/naming.test.mjs && node scripts/smoke.mjs",
+    "test:unit": "node --experimental-strip-types scripts/naming.test.mjs",
+    "test:e2e": "node scripts/smoke.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

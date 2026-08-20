@@ -4,15 +4,24 @@ import {
   type BaseScale,
   type ImageSetPlatformId,
 } from '../specs/imagesets';
-import { buildImageSetPlan, generateImageSets, type ImageSetSource } from '../core/imagesets';
+import { buildImageSetPlan, generateImageSets } from '../core/imagesets';
+import { androidName, uniqueName, xcodeName } from '../core/naming';
 import { el, formatBytes, svgGlyph, triggerDownload } from './dom';
 import { attachDropzone, readSource, type SourceImage } from './source';
 
 const MAX_IMAGES = 60;
 
-interface Entry extends ImageSetSource {
+/**
+ * `name` is mutable: it is what the user renames, and it is also the resource
+ * identifier the archive is built from. Structurally still an `ImageSetSource`.
+ */
+interface Entry {
+  name: string;
+  readonly blob: Blob;
+  readonly width: number;
+  readonly height: number;
   readonly previewUrl: string;
-  /** Stable across removals, so DOM diffing by index cannot mismatch. */
+  /** Stable across removals, so list rebuilds cannot mismatch rows. */
   readonly key: number;
 }
 
@@ -22,6 +31,8 @@ interface State {
   platforms: Set<ImageSetPlatformId>;
   busy: boolean;
   nextKey: number;
+  /** Key of the row currently being renamed, or null. */
+  editingKey: number | null;
 }
 
 const state: State = {
@@ -30,6 +41,7 @@ const state: State = {
   platforms: new Set<ImageSetPlatformId>(['ios', 'android']),
   busy: false,
   nextKey: 1,
+  editingKey: null,
 };
 
 const dom = {
@@ -139,6 +151,7 @@ function removeEntry(key: number): void {
   if (index === -1) return;
   const [removed] = state.entries.splice(index, 1);
   if (removed) URL.revokeObjectURL(removed.previewUrl);
+  if (state.editingKey === key) state.editingKey = null;
   renderList();
   refresh();
 }
@@ -146,9 +159,130 @@ function removeEntry(key: number): void {
 function clearAll(): void {
   for (const entry of state.entries) URL.revokeObjectURL(entry.previewUrl);
   state.entries = [];
+  state.editingKey = null;
   renderList();
   refresh();
 }
+
+/**
+ * The names each entry will actually ship under, computed for the whole list at
+ * once.
+ *
+ * Doing this per row would be a lie: `Logo.png` and `logo.png` both sanitise to
+ * `logo` on Android, and the archive resolves that by appending `_2`. Running
+ * the same dedup the plan runs means the label matches the file that lands on
+ * disk, collision suffix included.
+ */
+function derivedNames(): Map<number, string> {
+  const takenIos = new Set<string>();
+  const takenAndroid = new Set<string>();
+  const out = new Map<number, string>();
+
+  for (const entry of state.entries) {
+    const ios = uniqueName(xcodeName(entry.name), takenIos);
+    const android = uniqueName(androidName(entry.name), takenAndroid);
+    out.set(entry.key, ios === android ? ios : `${ios} · ${android}`);
+  }
+  return out;
+}
+
+function beginEdit(key: number): void {
+  state.editingKey = key;
+  renderList();
+}
+
+function commitEdit(entry: Entry, value: string): void {
+  const trimmed = value.trim();
+  // An empty name would sanitise to the literal fallback "image", which is
+  // almost certainly not what someone who cleared the field meant. Keep the old
+  // one instead of inventing a name.
+  if (trimmed !== '') entry.name = trimmed;
+  state.editingKey = null;
+  renderList();
+  refresh();
+}
+
+function cancelEdit(): void {
+  state.editingKey = null;
+  renderList();
+}
+
+function buildNameCell(entry: Entry, derived: string): HTMLElement {
+  const meta = document.createElement('div');
+  meta.className = 'is-item-meta';
+
+  if (state.editingKey === entry.key) {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'is-rename';
+    input.value = entry.name;
+    input.maxLength = 120;
+    input.spellcheck = false;
+    input.setAttribute('aria-label', 'Asset name');
+
+    let settled = false;
+    const commit = () => {
+      if (settled) return;
+      settled = true;
+      commitEdit(entry, input.value);
+    };
+
+    input.addEventListener('keydown', (event) => {
+      // Stop Enter/Space reaching the dropzone, which would open a file picker.
+      event.stopPropagation();
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commit();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        settled = true;
+        cancelEdit();
+      }
+    });
+    // Blur also commits, so clicking elsewhere does not silently discard.
+    input.addEventListener('blur', commit);
+
+    const sub = document.createElement('p');
+    sub.className = 'is-item-dims';
+    sub.textContent = `${entry.width} × ${entry.height} · ${derived}`;
+
+    meta.append(input, sub);
+    // Focus after the row is in the document; selecting the stem lets the user
+    // retype the name without clobbering an extension they want to keep.
+    queueMicrotask(() => {
+      input.focus();
+      const dot = input.value.lastIndexOf('.');
+      input.setSelectionRange(0, dot > 0 ? dot : input.value.length);
+    });
+    return meta;
+  }
+
+  const name = document.createElement('p');
+  name.className = 'is-item-name';
+  name.textContent = entry.name;
+
+  const dims = document.createElement('p');
+  dims.className = 'is-item-dims';
+  dims.textContent = `${entry.width} × ${entry.height} · ${derived}`;
+  dims.title = 'Names this asset will ship under (iOS · Android)';
+
+  meta.append(name, dims);
+  return meta;
+}
+
+function iconButton(label: string, path: string, className: string): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = className;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  button.append(svgGlyph(path, 'is-btn-glyph'));
+  return button;
+}
+
+const PENCIL =
+  'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z';
+const CROSS = 'M18.3 5.71L12 12l6.3 6.29-1.41 1.42L10.59 13.4 4.3 19.71 2.88 18.3 9.17 12 2.88 5.71 4.3 4.3l6.29 6.29L16.88 4.3z';
 
 function renderList(): void {
   const hasFiles = state.entries.length > 0;
@@ -166,34 +300,25 @@ function renderList(): void {
   dom.dropzone.removeAttribute('role');
 
   const frag = document.createDocumentFragment();
+  const derived = derivedNames();
 
   for (const entry of state.entries) {
     const item = document.createElement('li');
     item.className = 'is-item';
+    if (state.editingKey === entry.key) item.classList.add('is-editing');
 
     const thumb = document.createElement('img');
     thumb.className = 'is-thumb';
     thumb.src = entry.previewUrl;
     thumb.alt = '';
 
-    const meta = document.createElement('div');
-    meta.className = 'is-item-meta';
-    const name = document.createElement('p');
-    name.className = 'is-item-name';
-    name.textContent = entry.name;
-    const dims = document.createElement('p');
-    dims.className = 'is-item-dims';
-    dims.textContent = `${entry.width} × ${entry.height}`;
-    meta.append(name, dims);
+    const edit = iconButton(`Rename ${entry.name}`, PENCIL, 'is-icon-btn');
+    edit.addEventListener('click', () => beginEdit(entry.key));
 
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'is-remove';
-    remove.textContent = '×';
-    remove.setAttribute('aria-label', `Remove ${entry.name}`);
+    const remove = iconButton(`Remove ${entry.name}`, CROSS, 'is-icon-btn is-remove');
     remove.addEventListener('click', () => removeEntry(entry.key));
 
-    item.append(thumb, meta, remove);
+    item.append(thumb, buildNameCell(entry, derived.get(entry.key) ?? ''), edit, remove);
     frag.append(item);
   }
 

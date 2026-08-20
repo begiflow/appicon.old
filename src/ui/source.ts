@@ -113,6 +113,10 @@ export function attachDropzone(
   });
 
   dropzone.addEventListener('keydown', (event) => {
+    // Only when the zone itself has focus. The zone can contain text inputs
+    // (inline rename), and typing a space in one of those bubbles up here —
+    // which would swallow the keystroke and pop open a file picker.
+    if (event.target !== dropzone) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       openPicker();

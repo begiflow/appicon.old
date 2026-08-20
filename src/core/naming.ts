@@ -8,6 +8,24 @@
  * from the same source, rather than one lowest-common-denominator name.
  */
 
+/**
+ * Folds accented Latin letters to ASCII: `Biểu tượng` -> `Bieu tuong`.
+ *
+ * Without this, every diacritic falls into the "illegal character" bucket and a
+ * perfectly ordinary Vietnamese or French filename comes out as `bi_u_t_ng`.
+ * NFD splits a letter from its combining marks so the marks can be dropped; đ
+ * and ø have no decomposition and need naming explicitly.
+ */
+function foldDiacritics(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[đĐ]/g, (c) => (c === 'đ' ? 'd' : 'D'))
+    .replace(/[øØ]/g, (c) => (c === 'ø' ? 'o' : 'O'))
+    .replace(/[æÆ]/g, (c) => (c === 'æ' ? 'ae' : 'AE'))
+    .replace(/[ßẞ]/g, 'ss');
+}
+
 /** Strips the directory, the extension, and a trailing `@2x` / `_3x` / `-4x`. */
 export function baseName(fileName: string): string {
   const withoutDir = fileName.slice(fileName.lastIndexOf('/') + 1);
@@ -22,10 +40,13 @@ export function xcodeName(fileName: string): string {
 
 /** Android resource name: `[a-z_][a-z0-9_]*`, as enforced by aapt. */
 export function androidName(fileName: string): string {
-  let name = baseName(fileName)
-    .toLowerCase()
-    // Split camelCase before flattening, so `myIcon` -> `my_icon` not `myicon`.
+  let name = foldDiacritics(baseName(fileName))
+    // Split camelCase BEFORE lowercasing — afterwards there are no capitals
+    // left to match on, and `emptyState` would flatten to `emptystate`.
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    // Also split an acronym run followed by a word: `PDFViewer` -> `PDF_Viewer`.
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toLowerCase()
     .replace(/[^a-z0-9_]+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '');

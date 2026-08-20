@@ -352,6 +352,74 @@ await page2.locator('.base-opt').nth(1).click();
 await page2.waitForTimeout(100);
 check(await page2.locator('#is-warn').isHidden(), 'warning clears when base returns to 4x');
 
+/* --------------------------------------------------------- inline rename */
+
+// Row 0 is `Hero Banner@4x.png`, row 1 is `hero-banner.png`. Both sanitise to
+// `hero_banner` on Android, so the labels must already show the `_2` suffix the
+// archive will apply — otherwise the UI promises a name it does not deliver.
+const subline = (n) => page2.locator('.is-item').nth(n).locator('.is-item-dims').textContent();
+check((await subline(0)).includes('hero_banner'), 'row 0 shows its derived Android name');
+check(
+  (await subline(1)).includes('hero_banner_2'),
+  `row 1 shows the collision-suffixed name (got "${(await subline(1)).trim()}")`,
+);
+
+const row0 = page2.locator('.is-item').nth(0);
+await row0.locator('.is-icon-btn').first().click();
+check((await page2.locator('.is-rename').count()) === 1, 'pencil opens exactly one rename input');
+check(
+  await page2.evaluate(() => document.activeElement?.classList.contains('is-rename') === true),
+  'rename input is focused on open',
+);
+
+// Typing a space must not reach the dropzone's keydown handler, which would
+// swallow the keystroke and open a file picker.
+await page2.locator('.is-rename').fill('Promo Banner Wide');
+await page2.locator('.is-rename').press('Space');
+check(
+  (await page2.locator('.is-rename').inputValue()).endsWith(' '),
+  'space types into the field instead of triggering the dropzone',
+);
+
+await page2.locator('.is-rename').fill('Promo Banner');
+await page2.locator('.is-rename').press('Enter');
+await page2.waitForSelector('.is-rename', { state: 'detached' });
+check(
+  (await page2.locator('.is-item').nth(0).locator('.is-item-name').textContent()) === 'Promo Banner',
+  'Enter commits the new name',
+);
+check(
+  (await subline(0)).includes('promo_banner'),
+  'derived Android name updates live after rename',
+);
+check(
+  !(await subline(1)).includes('_2'),
+  'the other row drops its collision suffix once the clash is gone',
+);
+
+// Escape must discard, not commit.
+await page2.locator('.is-item').nth(1).locator('.is-icon-btn').first().click();
+await page2.locator('.is-rename').fill('should-not-stick');
+await page2.locator('.is-rename').press('Escape');
+await page2.waitForSelector('.is-rename', { state: 'detached' });
+check(
+  (await page2.locator('.is-item').nth(1).locator('.is-item-name').textContent()) ===
+    'hero-banner.png',
+  'Escape cancels the rename',
+);
+
+// An emptied field would sanitise to the literal fallback "image"; keep the old
+// name instead of inventing one.
+await page2.locator('.is-item').nth(1).locator('.is-icon-btn').first().click();
+await page2.locator('.is-rename').fill('   ');
+await page2.locator('.is-rename').press('Enter');
+await page2.waitForSelector('.is-rename', { state: 'detached' });
+check(
+  (await page2.locator('.is-item').nth(1).locator('.is-item-name').textContent()) ===
+    'hero-banner.png',
+  'a blank name is rejected rather than becoming "image"',
+);
+
 const [dl2] = await Promise.all([
   page2.waitForEvent('download', { timeout: 60_000 }),
   page2.locator('#is-generate-btn').click(),
@@ -383,15 +451,15 @@ console.log(`      ${list2.length} entries in archive`);
 
 // `Hero Banner@4x.png` -> iOS keeps the readable stem, Android must not.
 for (const p of [
-  'ios/Hero Banner.imageset/Contents.json',
-  'ios/Hero Banner.imageset/Hero Banner.png',
-  'ios/Hero Banner.imageset/Hero Banner@2x.png',
-  'ios/Hero Banner.imageset/Hero Banner@3x.png',
-  'android/res/drawable-mdpi/hero_banner.png',
-  'android/res/drawable-hdpi/hero_banner.png',
-  'android/res/drawable-xhdpi/hero_banner.png',
-  'android/res/drawable-xxhdpi/hero_banner.png',
-  'android/res/drawable-xxxhdpi/hero_banner.png',
+  'ios/Promo Banner.imageset/Contents.json',
+  'ios/Promo Banner.imageset/Promo Banner.png',
+  'ios/Promo Banner.imageset/Promo Banner@2x.png',
+  'ios/Promo Banner.imageset/Promo Banner@3x.png',
+  'android/res/drawable-mdpi/promo_banner.png',
+  'android/res/drawable-hdpi/promo_banner.png',
+  'android/res/drawable-xhdpi/promo_banner.png',
+  'android/res/drawable-xxhdpi/promo_banner.png',
+  'android/res/drawable-xxxhdpi/promo_banner.png',
   'README.txt',
 ]) {
   check(list2.includes(p), `image sets contain ${p}`);
@@ -402,11 +470,11 @@ check(
   'no Android resource name has uppercase or spaces (aapt would reject)',
 );
 check(
-  list2.includes('android/res/drawable-mdpi/hero_banner_2.png'),
-  'colliding Android names are disambiguated with a suffix',
+  list2.includes('android/res/drawable-mdpi/hero_banner.png'),
+  'the un-renamed image keeps its own derived name',
 );
 
-const isJson = JSON.parse(read2('ios/Hero Banner.imageset/Contents.json').toString());
+const isJson = JSON.parse(read2('ios/Promo Banner.imageset/Contents.json').toString());
 check(isJson.images.length === 3, `imageset Contents.json lists 3 scales (got ${isJson.images.length})`);
 check(
   isJson.images.every((i) => i.idiom === 'universal'),
@@ -418,7 +486,7 @@ check(
 );
 {
   const present = new Set(
-    list2.filter((f) => f.startsWith('ios/Hero Banner.imageset/')).map((f) => f.split('/').pop()),
+    list2.filter((f) => f.startsWith('ios/Promo Banner.imageset/')).map((f) => f.split('/').pop()),
   );
   const missing = isJson.images.filter((i) => !present.has(i.filename)).map((i) => i.filename);
   check(missing.length === 0, `imageset references only existing files${missing.length ? ' — missing ' + missing.join(',') : ''}`);
@@ -426,14 +494,14 @@ check(
 
 // Source is 800x400 declared as 4x, so 1x = 200x100 and aspect ratio must hold.
 for (const [p, w, h] of [
-  ['ios/Hero Banner.imageset/Hero Banner.png', 200, 100],
-  ['ios/Hero Banner.imageset/Hero Banner@2x.png', 400, 200],
-  ['ios/Hero Banner.imageset/Hero Banner@3x.png', 600, 300],
-  ['android/res/drawable-mdpi/hero_banner.png', 200, 100],
-  ['android/res/drawable-hdpi/hero_banner.png', 300, 150],
-  ['android/res/drawable-xhdpi/hero_banner.png', 400, 200],
-  ['android/res/drawable-xxhdpi/hero_banner.png', 600, 300],
-  ['android/res/drawable-xxxhdpi/hero_banner.png', 800, 400],
+  ['ios/Promo Banner.imageset/Promo Banner.png', 200, 100],
+  ['ios/Promo Banner.imageset/Promo Banner@2x.png', 400, 200],
+  ['ios/Promo Banner.imageset/Promo Banner@3x.png', 600, 300],
+  ['android/res/drawable-mdpi/promo_banner.png', 200, 100],
+  ['android/res/drawable-hdpi/promo_banner.png', 300, 150],
+  ['android/res/drawable-xhdpi/promo_banner.png', 400, 200],
+  ['android/res/drawable-xxhdpi/promo_banner.png', 600, 300],
+  ['android/res/drawable-xxxhdpi/promo_banner.png', 800, 400],
 ]) {
   const buf = read2(p);
   const [gw, gh] = [buf.readUInt32BE(16), buf.readUInt32BE(20)];
@@ -442,6 +510,99 @@ for (const [p, w, h] of [
 
 fs.rmSync(fixtures, { recursive: true, force: true });
 fs.rmSync(isZip, { force: true });
+
+/* ================================== drag-and-drop with Unicode filenames */
+
+console.log('\n--- Drag & drop / Unicode names ---');
+
+// Two things `setInputFiles` cannot cover:
+//   1. The real `drop` event path, which has its own DataTransfer handling.
+//   2. Non-ASCII filenames — Playwright marshals paths through the OS locale,
+//      and in a POSIX-locale container the file is silently dropped before it
+//      ever reaches the page. Building the File in-page sidesteps that, and is
+//      also closer to what a browser actually hands the app.
+const server3 = http.createServer((req, res) => {
+  let rel = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (!rel.startsWith(BASE)) return void res.writeHead(404).end();
+  rel = rel.slice(BASE.length) || 'index.html';
+  const file = path.join(dist, rel);
+  if (!file.startsWith(dist) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+    return void res.writeHead(404).end();
+  }
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream' });
+  fs.createReadStream(file).pipe(res);
+});
+await new Promise((r) => server3.listen(PORT + 2, r));
+
+const browser3 = await chromium.launch(executablePath ? { executablePath } : {});
+const page3 = await browser3.newPage();
+const errors3 = [];
+page3.on('console', (m) => m.type() === 'error' && errors3.push(m.text()));
+page3.on('pageerror', (e) => errors3.push(String(e)));
+await page3.goto(`http://localhost:${PORT + 2}${BASE}#image-sets`, { waitUntil: 'networkidle' });
+
+await page3.evaluate(async () => {
+  const make = async (w, h, colour) => {
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = colour;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, Math.min(w, h) * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    return canvas.convertToBlob({ type: 'image/png' });
+  };
+  const dt = new DataTransfer();
+  dt.items.add(new File([await make(1200, 900, '#1e2846')], 'Ảnh Nền@4x.png', { type: 'image/png' }));
+  dt.items.add(new File([await make(800, 800, '#0d7a5f')], 'Biểu tượng.png', { type: 'image/png' }));
+  dt.items.add(new File([await make(1600, 600, '#3b6cf6')], 'Đăng nhập@4x.png', { type: 'image/png' }));
+  document
+    .getElementById('is-dropzone')
+    .dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+});
+await page3.waitForSelector('.is-item');
+
+check((await page3.locator('.is-item').count()) === 3, 'drop event accepts all three files');
+
+const subs = await page3.locator('.is-item-dims').allTextContents();
+for (const [i, want] of [
+  [0, 'anh_nen'],
+  [1, 'bieu_tuong'],
+  [2, 'dang_nhap'],
+]) {
+  check(
+    (subs[i] ?? '').includes(want),
+    `Vietnamese filename folds to ${want} (got "${(subs[i] ?? '').trim()}")`,
+  );
+}
+
+const [dl3] = await Promise.all([
+  page3.waitForEvent('download', { timeout: 60_000 }),
+  page3.locator('#is-generate-btn').click(),
+]);
+const vnZip = path.join(root, '.tmp-Unicode.zip');
+await dl3.saveAs(vnZip);
+check(errors3.length === 0, `no console errors${errors3.length ? ': ' + errors3.join(' | ') : ''}`);
+await browser3.close();
+server3.close();
+
+const list3 = execFileSync('unzip', ['-Z1', vnZip], { encoding: 'utf8' }).trim().split('\n');
+for (const p of [
+  'android/res/drawable-xxxhdpi/anh_nen.png',
+  'android/res/drawable-xxxhdpi/bieu_tuong.png',
+  'android/res/drawable-xxxhdpi/dang_nhap.png',
+  'ios/Ảnh Nền.imageset/Contents.json',
+]) {
+  check(list3.includes(p), `unicode archive contains ${p}`);
+}
+check(
+  list3
+    .filter((f) => f.startsWith('android/'))
+    .every((f) => /^[a-z_][a-z0-9_]*\.png$/.test(f.split('/').pop())),
+  'every Android filename from Unicode input is a legal aapt resource name',
+);
+fs.rmSync(vnZip, { force: true });
 
 fs.rmSync(srcPng, { force: true });
 fs.rmSync(zipPath, { force: true });

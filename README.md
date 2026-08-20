@@ -52,11 +52,22 @@ derived by dividing down from there, so nothing is ever upscaled silently. Pick
 3x with Android selected and the UI tells you `xxxhdpi` (4x) cannot be satisfied
 rather than shipping you a soft asset.
 
+**Rename inline.** Every row has a pencil: click it and edit the name in place.
+Enter commits, Escape discards, blur commits. The subline under each filename
+shows the two names that asset will actually ship under — iOS first, Android
+second — recomputed live as you type, collision suffix included.
+
 **Resource names are sanitised per platform.** `Hero Banner@4x.png` becomes the
 `Hero Banner` imageset on iOS and `hero_banner.png` on Android, because `aapt`
 rejects any file under `res/` outside `[a-z_][a-z0-9_]*` — and it fails at build
 time, far from the asset that caused it. The trailing `@4x` is stripped, camel
-case is split before flattening, and collisions get a numeric suffix.
+case is split *before* lowercasing (`emptyState` → `empty_state`, not
+`emptystate`), acronym runs break correctly (`PDFViewer` → `pdf_viewer`), and
+collisions get a numeric suffix.
+
+**Diacritics fold to ASCII.** `Biểu tượng.png` → `bieu_tuong`, `Größe.png` →
+`grosse`. Without this every accented character lands in the illegal-character
+bucket and an ordinary Vietnamese filename comes out as `bi_u_t_ng`.
 
 ---
 
@@ -113,15 +124,29 @@ zipping, no UI framework. Ships **~34 kB JS / 14 kB gzipped**.
 npm install
 npm run dev            # http://localhost:5173
 npm run build          # tsc + vite build → dist/
-npm run test           # headless end-to-end check (91 assertions)
+npm run test           # unit + end-to-end (138 assertions)
+npm run test:unit      # resource-name sanitiser, no browser needed
+npm run test:e2e       # browser suite (requires a prior build)
 ```
 
-The test suite builds the site, serves it under the Pages sub-path, and drives
-real Chromium through both tabs — upload → select-all → generate — then unzips
-each result and asserts PNG dimensions read from the IHDR chunk, catalog/file
+[`scripts/naming.test.mjs`](scripts/naming.test.mjs) covers the sanitiser
+directly — it needs no browser, and it is the piece most likely to regress
+silently, because a wrong name still produces a valid-looking zip and only fails
+later inside somebody's Android build.
+
+[`scripts/smoke.mjs`](scripts/smoke.mjs) builds the site, serves it under the
+Pages sub-path, and drives real Chromium through both tabs, then unzips each
+result and asserts PNG dimensions read from the IHDR chunk, catalog/file
 cross-references, ICO container structure, manifest contents, hash routing, the
-upscale warning, aspect-ratio preservation, and that no Android resource name
-would make `aapt` fail.
+upscale warning appearing and clearing, aspect ratio held across all eight
+densities, the rename flow (commit, cancel, blank rejection), and that no
+Android resource name would make `aapt` fail.
+
+The last scenario builds its `File` objects inside the page and fires a real
+`drop` event, rather than using `setInputFiles`. That covers the drag-and-drop
+path, and it is the only way to test non-ASCII filenames: Playwright marshals
+paths through the OS locale, so in a POSIX-locale container a file called
+`Ảnh Nền@4x.png` is dropped before it ever reaches the page.
 
 ```bash
 # If your Chromium lives somewhere Playwright doesn't expect:

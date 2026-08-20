@@ -1001,21 +1001,69 @@ input[type='color'] {
   color: var(--text-dim);
   font-family: var(--mono);
 }
-.is-remove {
+.is-icon-btn {
   font: inherit;
   flex: none;
-  width: 26px;
-  height: 26px;
-  line-height: 1;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  background: var(--bg-elev);
-  color: var(--text-dim);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-faint);
   cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+.is-icon-btn:hover {
+  color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--bg-elev);
 }
 .is-remove:hover {
-  border-color: var(--danger);
   color: var(--danger);
+  border-color: var(--danger);
+}
+.is-btn-glyph {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  pointer-events: none;
+}
+
+/* The pencil is low-contrast until the row is hovered or something inside it
+   has focus, so a long list does not read as a wall of buttons. */
+.is-item .is-icon-btn {
+  opacity: 0.45;
+}
+.is-item:hover .is-icon-btn,
+.is-item:focus-within .is-icon-btn {
+  opacity: 1;
+}
+@media (hover: none) {
+  .is-item .is-icon-btn {
+    opacity: 1;
+  }
+}
+
+.is-item.is-editing {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.is-rename {
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 560;
+  width: 100%;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--bg-elev);
+  color: var(--text);
+}
+.is-rename:focus {
+  outline: none;
 }
 
 .is-footer {
