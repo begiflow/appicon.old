@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "appicon-old",
+  "compatibility_date": "2026-08-25",
+  "observability": {
+    "enabled": true
+  },
+  // Assets-only Worker: there is no server code, just the Vite `dist/` output.
+  // Without this file `wrangler deploy` drops into its interactive setup wizard,
+  // which fails in CI.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
