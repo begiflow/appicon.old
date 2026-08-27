@@ -159,6 +159,11 @@ Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy
 which builds with `BASE_PATH=/<repo-name>/` and publishes to Pages. For a custom
 domain, build with `BASE_PATH=/`.
 
+Cloudflare deploys the same `dist/` as an assets-only Worker via
+[`wrangler.jsonc`](wrangler.jsonc) — `npm run deploy` locally, or the dashboard's
+build command in CI. The build container sets `WORKERS_CI`/`CF_PAGES`, which
+flips `base` to `/` since a Worker serves from the domain root.
+
 ## Licence
 
 MIT
